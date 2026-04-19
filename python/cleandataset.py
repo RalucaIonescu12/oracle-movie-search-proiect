@@ -8,9 +8,36 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 INPUT_CSV = BASE_DIR / "data" / "imdb_top_1000.csv"
-OUTPUT_CSV = BASE_DIR / "data" / "imdb_movies_clean.csv"
 
-def main():
+
+def load_config():
+    load_dotenv(BASE_DIR / ".env")
+
+    username = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
+    host = os.getenv("DB_HOST")
+    port = os.getenv("DB_PORT")
+    service_name = os.getenv("DB_SERVICE")
+
+    if not all([username, password, host, port, service_name]):
+        raise ValueError("Missing DB settings in .env")
+
+    return username, password, host, port, service_name
+
+
+def get_connection():
+    username, password, host, port, service_name = load_config()
+
+    dsn = oracledb.makedsn(host, int(port), service_name=service_name)
+
+    return oracledb.connect(
+        user=username,
+        password=password,
+        dsn=dsn
+    )
+
+
+def load_and_prepare_dataset():
     df = pd.read_csv(INPUT_CSV)
 
     df = df[["Series_Title", "Genre", "Overview"]].copy()
@@ -21,66 +48,30 @@ def main():
         "Overview": "overview"
     }, inplace=True)
 
-    # drop valori lipsa
     df.dropna(subset=["title", "genre", "overview"], inplace=True)
 
-    # clean spatii
     for col in ["title", "genre", "overview"]:
         df[col] = df[col].astype(str).str.strip()
 
-    # df = df.head(300).copy()
-
-    # ID
     df.insert(0, "movie_id", range(1, len(df) + 1))
 
-    # textul folosit pentru semantic search
     df["search_text"] = (
         "Title: " + df["title"] +
         ". Genres: " + df["genre"] +
         ". Overview: " + df["overview"]
     )
 
-    df = generate_embeddings(df)
-
-    connect_to_db(df)
-
-    # df.to_csv(OUTPUT_CSV, index=False, encoding="utf-8")
-    print(f"Saved cleaned dataset to: {OUTPUT_CSV}")
-    print(f"Type: {type(df["embedding"][0])}")
+    return df
 
 
 def generate_embeddings(df):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-
+    model = SentenceTransformer("all-MiniLM-L6-v2")
     df["embedding"] = df["search_text"].apply(lambda x: model.encode(x))
-
     return df
 
-def connect_to_db(df):
-    print("Connecting to DB")
 
-    load_dotenv()
-
-    username = os.getenv("DB_USER")
-    password = os.getenv("DB_PASSWORD")
-    host = os.getenv("DB_HOST")
-    port = os.getenv("DB_PORT")
-    service_name = os.getenv("DB_SERVICE")
-    database_name = os.getenv("DB_NAME")
-
-    dsn = oracledb.makedsn(host, int(port), service_name=service_name)
-
-    try:
-        connection = oracledb.connect(user=username, password=password, dsn=dsn)
-        print("Conexiunea la Oracle a fost realizată cu succes!")
-
-    except oracledb.DatabaseError as e:
-        print("Eroare la conectarea la Oracle:", e)
-
-    # finally:
-    #     if 'connection' in locals():
-    #         connection.close()
-
+def insert_movies_into_db(df):
+    connection = get_connection()
     cursor = connection.cursor()
 
     for idx, row in df.iterrows():
@@ -92,75 +83,36 @@ def connect_to_db(df):
                 INSERT INTO movies (movie_id, title, genre, overview, search_text, embedding)
                 VALUES (:movie_id, :title, :genre, :overview, :search_text, :embedding)
             """, {
-                "movie_id": row["movie_id"],
+                "movie_id": int(row["movie_id"]),
                 "title": row["title"],
                 "genre": row["genre"],
                 "overview": row["overview"],
                 "search_text": row["search_text"],
                 "embedding": embedding_str
             })
+
         except oracledb.DatabaseError as e:
             error, = e.args
             print(f"Eroare la inserția rândului {idx} (movie_id={row['movie_id']}): {error.message}")
+            connection.rollback()
+            cursor.close()
+            connection.close()
             return
 
     connection.commit()
     cursor.close()
     connection.close()
-    print("Datele au fost inserate cu succes!")
+    print("Datele au fost inserate cu succes.")
 
 
-def semantic_search():
+def main():
+    df = load_and_prepare_dataset()
 
-    load_dotenv()
+    df = generate_embeddings(df)
 
-    username = os.getenv("DB_USER")
-    password = os.getenv("DB_PASSWORD")
-    host = os.getenv("DB_HOST")
-    port = os.getenv("DB_PORT")
-    service_name = os.getenv("DB_SERVICE")
-    database_name = os.getenv("DB_NAME")
+    insert_movies_into_db(df)
 
-    # Construim DSN (Data Source Name)
-    dsn = oracledb.makedsn(host, int(port), service_name=service_name)
-
-    connection = oracledb.connect(
-        user=username,
-        password=password,
-        dsn=dsn
-    )
-
-    cursor = connection.cursor()
-
-    sql = """
-    SELECT movie_id, title
-    FROM movies
-    ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
-    FETCH FIRST 5 ROWS ONLY
-    """
-
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-
-    query_text = "dream"
-    query_vector = model.encode(query_text).tolist()
-
-    vector_str = "[" + ",".join(map(str, query_vector)) + "]"
-
-    cursor.execute(sql, {"query_vector": vector_str})
-
-    results = cursor.fetchall()
-
-    for row in results:
-        print(row)
-
-    cursor.close()
-    connection.close()
 
 
 if __name__ == "__main__":
-    # connect_to_db()
-    # main()
-
-    semantic_search()
-
-
+    main()
