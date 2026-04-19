@@ -35,11 +35,64 @@ def get_connection():
     )
 
 
+def get_sql(search_mode):
+    # Varianta 1 = exact search
+    # mai precis
+    # mai corect matematic
+    # mai lent pe volume mari
+    # nu are nevoie neaparat de vector index
+
+    if search_mode == "1":
+        return """
+        SELECT movie_id,
+               title,
+               overview,
+               VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS vector_distance,
+               1 - VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS similarity_score
+        FROM movies
+        ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
+        FETCH FIRST 10 ROWS ONLY
+        """, "EXACT SEARCH"
+
+    # Varianta 2 = approximate search
+    # mult mai rapid pe volume mari
+    # foloseste vector index
+    # poate rata uneori un rezultat care ar fi fost in topul exact
+    # este compromisul clasic: viteza vs perfectiune
+    elif search_mode == "2":
+        return """
+        SELECT movie_id,
+               title,
+               overview,
+               VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS vector_distance,
+               1 - VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS similarity_score
+        FROM movies
+        ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
+        FETCH APPROX FIRST 10 ROWS ONLY WITH TARGET ACCURACY 80
+        """, "APPROXIMATE SEARCH"
+
+    else:
+        return None, None
+
+
 def semantic_search():
     connection = get_connection()
     cursor = connection.cursor()
 
     model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    print("Alege varianta de cautare:")
+    print("1 - Exact search")
+    print("2 - Approximate search")
+    search_mode = input("Optiune: ").strip()
+
+    sql, mode_label = get_sql(search_mode)
+
+    if not sql:
+        print("Optiune invalida.")
+        cursor.close()
+        connection.close()
+        return
 
     query_text = input("Query: ").strip()
 
@@ -52,21 +105,18 @@ def semantic_search():
     query_vector = model.encode(query_text).tolist()
     vector_str = "[" + ",".join(map(str, query_vector)) + "]"
 
-    sql = """
-    SELECT movie_id,
-           title,
-           overview,
-           VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS vector_distance,
-           1 - VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS similarity_score
-    FROM movies
-    ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
-    FETCH FIRST 10 ROWS ONLY
-    """
+    try:
+        cursor.execute(sql, {"query_vector": vector_str})
+        results = cursor.fetchall()
+    except oracledb.DatabaseError as e:
+        print("Eroare la rularea query-ului:")
+        print(e)
+        cursor.close()
+        connection.close()
+        return
 
-    cursor.execute(sql, {"query_vector": vector_str})
-    results = cursor.fetchall()
-
-    print(f"\nRezultate pentru: {query_text}\n")
+    print(f"\n{mode_label}")
+    print(f"Rezultate pentru: {query_text}\n")
 
     for row in results:
         movie_id, title, overview_lob, vector_distance, similarity_score = row
@@ -74,9 +124,8 @@ def semantic_search():
 
         print(f"ID: {movie_id}")
         print(f"Title: {title}")
-        print(f"Vector distance: {vector_distance}") # cu cat e mai mica, cu atat rezultatul este mai apropiat semantic
-        print(f"Similarity score: {similarity_score}") #cu cat e mai mare, cu atat rezultatul este mai asemanator semantic. 
-                                                    # pentru cosine, acesta este derivat direct din distanta prin 1 - distance
+        print(f"Vector distance: {vector_distance}")
+        print(f"Similarity score: {similarity_score}")
         print(f"Overview: {overview}")
         print("-" * 80)
 

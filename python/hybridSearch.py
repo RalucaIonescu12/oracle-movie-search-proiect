@@ -62,6 +62,11 @@ def hybrid_search(top_k=5, candidate_k=20):
 
     connection = get_connection()
     cursor = connection.cursor()
+    
+    # semantica valorează dublu față de keyword
+    text_weight = 1.0
+    vector_weight = 2.0
+    rank_penalty = 60
 
     # Query hibrid:
     # 1. kw = top rezultate keyword cu Oracle Text
@@ -69,6 +74,12 @@ def hybrid_search(top_k=5, candidate_k=20):
     # 3. fused = combina cele doua liste si calculeaza un scor final
     sql = f"""
     WITH kw AS (
+    SELECT movie_id,
+           title,
+           overview,
+           kw_score,
+           kw_rank
+    FROM (
         SELECT movie_id,
                title,
                overview,
@@ -76,9 +87,17 @@ def hybrid_search(top_k=5, candidate_k=20):
                ROW_NUMBER() OVER (ORDER BY SCORE(1) DESC) AS kw_rank
         FROM movies
         WHERE CONTAINS(search_text, :keyword_query, 1) > 0
-        FETCH FIRST {candidate_k} ROWS ONLY
-    ),
-    vec AS (
+    )
+    ORDER BY kw_rank
+    FETCH FIRST 20 ROWS ONLY
+),
+vec AS (
+    SELECT movie_id,
+           title,
+           overview,
+           vec_distance,
+           vec_rank
+    FROM (
         SELECT movie_id,
                title,
                overview,
@@ -87,8 +106,10 @@ def hybrid_search(top_k=5, candidate_k=20):
                    ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
                ) AS vec_rank
         FROM movies
-        FETCH FIRST {candidate_k} ROWS ONLY
-    ),
+    )
+    ORDER BY vec_rank
+    FETCH FIRST 20 ROWS ONLY
+),
     fused AS (
         SELECT
             COALESCE(kw.movie_id, vec.movie_id) AS movie_id,
@@ -98,8 +119,8 @@ def hybrid_search(top_k=5, candidate_k=20):
             kw.kw_rank,
             vec.vec_distance,
             vec.vec_rank,
-            NVL(1.0 / (60 + kw.kw_rank), 0) +
-            NVL(1.0 / (60 + vec.vec_rank), 0) AS hybrid_score
+            NVL(:text_weight / (:rank_penalty + kw.kw_rank), 0) +
+            NVL(:vector_weight / (:rank_penalty + vec.vec_rank), 0) AS hybrid_score
         FROM kw
         FULL OUTER JOIN vec
             ON kw.movie_id = vec.movie_id
