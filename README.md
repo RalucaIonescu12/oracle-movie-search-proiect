@@ -71,6 +71,7 @@ Indexurile sunt definite in `sql/scripts.sql`:
 
 
 - **Index text**:
+   Oracle transformă textul în tokenuri și construiește un inverted index. Structura generală a unui index CONTEXT este un inverted index: pentru fiecare token se păstrează lista de documente/rânduri în care apare.
   ```sql
   CREATE INDEX movies_text_idx
   ON movies(search_text)
@@ -136,7 +137,9 @@ Interogarea foloseste Oracle Text:
 SELECT movie_id,
        title,
        overview,
-       SCORE(1) AS keyword_score
+       SCORE(1) AS keyword_score  # term frequency + inverse document frequency (TF-IDF)
+                                  # scor de relevanta calculat de Oracle Text pe baza frecventei
+                                  # termenilor în document si a raritatii lor in colecția de documente.
 FROM movies
 WHERE CONTAINS(search_text, :query_text, 1) > 0
 ORDER BY keyword_score DESC
