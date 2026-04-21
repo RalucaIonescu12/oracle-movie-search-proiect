@@ -140,7 +140,10 @@ vec AS (
 
     cursor.execute(sql, {
         "keyword_query": keyword_query,
-        "query_vector": vector_str
+        "query_vector": vector_str,
+        "text_weight": text_weight,
+        "vector_weight": vector_weight,
+        "rank_penalty": rank_penalty,
     })
 
     results = cursor.fetchall()
