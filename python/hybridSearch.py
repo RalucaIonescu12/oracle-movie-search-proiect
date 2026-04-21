@@ -192,4 +192,4 @@ if __name__ == "__main__":
     # Ruleaza cautarea hibrida cu:
     # - top_k=5       -> cate rezultate finale sa afiseze
     # - candidate_k=20 -> cate candidate sa ia initial din fiecare lista
-    hybrid_search(top_k=5, candidate_k=20)
+    hybrid_search(top_k=10, candidate_k=20)

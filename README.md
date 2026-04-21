@@ -70,20 +70,21 @@ CREATE TABLE movies (
 Indexurile sunt definite in `sql/scripts.sql`:
 
 
-- **Index text**:
-   Oracle transformă textul în tokenuri și construiește un inverted index. Structura generală a unui index CONTEXT este un inverted index: pentru fiecare token se păstrează lista de documente/rânduri în care apare.
+- **Index text**:   Transformă textul în tokenuri și construiește un inverted index. Structura generală a unui index CONTEXT este un inverted index: pentru fiecare token se păstrează lista de documente/rânduri în care apare.
   ```sql
   CREATE INDEX movies_text_idx
   ON movies(search_text)
   INDEXTYPE IS CTXSYS.CONTEXT;
   ```
 - **Index vectorial (IVF)**:
+  IVF nu mai compară query-ul cu toti vectorurii. Grupează vectorii similari în neighbor partitions și caută doar în zonele care par promițătoare pentru query.Reduce spațiul de căutare prin neighbor partitions.
   ```sql
   CREATE VECTOR INDEX movies_vec_ivf_idx
   ON movies(embedding)
   ORGANIZATION NEIGHBOR PARTITIONS
   DISTANCE COSINE
-  WITH TARGET ACCURACY 90
+  WITH TARGET ACCURACY 90  # accuracy măsoară cât de mult se suprapun sau cât de aproape 
+                           # este acel top-k aprox de top-k exact
   PARAMETERS (type IVF, NEIGHBOR PARTITIONS 8);
   ```
 
@@ -171,7 +172,7 @@ Script: `python/semanticSearch.py`
 - **Exact search**:
   ```sql
   ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
-  FETCH FIRST 10 ROWS ONLY
+  FETCH EXACT FIRST 10 ROWS ONLY
   ```
 - **Approximate search**:
   ```sql
@@ -182,10 +183,10 @@ Folosim `80` ca valoare la `TARGET ACCURACY` deoarece este valoarea de echilibru
 
 ## Output semantic search
 
-![Output_semantic_search](images/semantic_search_1.png)
-![Output_semantic_search](images/semantic_search_2.png)
-![Output_semantic_search](images/semantic_search_3.png)
-![Output_semantic_search](images/semantic_search_4.png)
+![Output_semantic_search](images/tragicChildhoodstorySemanticExact.png)
+![Output_semantic_search](images/tragicChildhoodstorySemanticExact2.png)
+![Output_semantic_search](images/tragicChildhoodstorySemanticAprox.png)
+![Output_semantic_search](images/tragicChildhoodStoryAprox2.png)
 
 
 ---
@@ -202,13 +203,16 @@ Implementarea creeaza doua seturi candidate:
 unde:
 
 - `kw_score` = scor lexical Oracle Text (mai mare = mai relevant textual)
-- `kw_rank` = poziția în clasamentul keyword (1 = cel mai bun keyword match)
+- `kw_rank` = = poziția după sortarea descrescătoare a lui kw_score(1 = cel mai bun keyword match) 
 - `vec_distance` = distanța semantică (mai mic = mai apropiat ca sens)
 - `vec_rank` = poziția semantică (1 = cel mai apropiat semantic)
 
 Seturile sunt combinate prin `FULL OUTER JOIN`, iar scorul final se calculeaza pe baza `Reciprocal Rank Fusion`.
 
-`RRF` este o metoda standard de a combina mai multe ranking-uri fara a compara direct scorurile brute, deoarece au naturi diferite.
+ este o metoda standard de a combina mai multe ranking-uri fara a compara direct scorurile brute, deoarece au naturi diferite.
+`RRF` este o metoda standard de a combina mai multe ranking-uri fara a compara direct scorurile brute ci pozițiilor în ranking, ajustat cu o constantă de penalizare / rank constant. 
+
+![Output_hybrid_search](images/RRFformula.png)
 
 ```sql
 NVL(:text_weight / (:rank_penalty + kw.kw_rank), 0) +

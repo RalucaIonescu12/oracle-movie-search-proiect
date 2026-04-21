@@ -51,7 +51,7 @@ def get_sql(search_mode):
                1 - VECTOR_DISTANCE(embedding, :query_vector, COSINE) AS similarity_score
         FROM movies
         ORDER BY VECTOR_DISTANCE(embedding, :query_vector, COSINE)
-        FETCH FIRST 10 ROWS ONLY
+        FETCH EXACT FIRST 10 ROWS ONLY
         """, "EXACT SEARCH"
 
     # Varianta 2 = approximate search
