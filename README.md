@@ -14,7 +14,7 @@ Solutia foloseste Oracle Database (Oracle Text + Oracle AI Vector Search) si scr
 
 ### 1.1 Componente
 
-- **Sursa date**: `data/imdb_top_1000.csv`
+- **Sursa date**: `data/imdb_top_1000.csv`, https://www.kaggle.com/datasets/harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows?resource=download
 - **Procesare date + embedding-uri**: `python/cleandataset.py`
 - **Schema DB + indexuri**: `sql/scripts.sql`
 - **Cautare keyword**: `python/keywordSearch.py`
