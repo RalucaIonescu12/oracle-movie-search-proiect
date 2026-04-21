@@ -186,6 +186,8 @@ Folosim `80` ca valoare la `TARGET ACCURACY` deoarece este valoarea de echilibru
 ![Output_semantic_search](images/image1.png)
 ![Output_semantic_search](images/image.png)
 
+Rezultatele nu sunt aceleasi, varianta aproximativa are o performanță mai bună (latență mai mică) cu o mică pierdere posibilă de acuratețe.
+
 
 ---
 
@@ -267,7 +269,7 @@ Fisierul `.env` trebuie sa contina:
 ---
 
 
-## 8) Link-uri
+## 9) Link-uri
 https://medium.com/@devalshah1619/mathematical-intuition-behind-reciprocal-rank-fusion-rrf-explained-in-2-mins-002df0cc5e2a
 
 https://www.kaggle.com/datasets/harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows?resource=download
