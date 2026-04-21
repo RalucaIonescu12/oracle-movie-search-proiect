@@ -183,10 +183,8 @@ Folosim `80` ca valoare la `TARGET ACCURACY` deoarece este valoarea de echilibru
 
 ## Output semantic search
 
-![Output_semantic_search](images/tragicChildhoodstorySemanticExact.png)
-![Output_semantic_search](images/tragicChildhoodstorySemanticExact2.png)
-![Output_semantic_search](images/tragicChildhoodstorySemanticAprox.png)
-![Output_semantic_search](images/tragicChildhoodStoryAprox2.png)
+![Output_semantic_search](images/image1.png
+![Output_semantic_search](images/image.png)
 
 
 ---
@@ -267,3 +265,15 @@ Fisierul `.env` trebuie sa contina:
 - `Oracle`: `Oracle AI Database 26ai`
 
 ---
+
+
+## 8) Link-uri
+https://medium.com/@devalshah1619/mathematical-intuition-behind-reciprocal-rank-fusion-rrf-explained-in-2-mins-002df0cc5e2a
+
+https://www.kaggle.com/datasets/harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows?resource=download
+
+https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+
+https://docs.oracle.com/en/database/oracle/oracle-database/26/vecse/approximate-search-using-ivf.html
+
+https://docs.oracle.com/en/database/oracle/oracle-database/26/vecse/understand-hybrid-search.html
