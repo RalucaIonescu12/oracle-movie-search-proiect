@@ -183,7 +183,7 @@ Folosim `80` ca valoare la `TARGET ACCURACY` deoarece este valoarea de echilibru
 
 ## Output semantic search
 
-![Output_semantic_search](images/image1.png
+![Output_semantic_search](images/image1.png)
 ![Output_semantic_search](images/image.png)
 
 
