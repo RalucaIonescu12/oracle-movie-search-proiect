@@ -209,8 +209,7 @@ unde:
 
 Seturile sunt combinate prin `FULL OUTER JOIN`, iar scorul final se calculeaza pe baza `Reciprocal Rank Fusion`.
 
- este o metoda standard de a combina mai multe ranking-uri fara a compara direct scorurile brute, deoarece au naturi diferite.
-`RRF` este o metoda standard de a combina mai multe ranking-uri fara a compara direct scorurile brute ci pozițiilor în ranking, ajustat cu o constantă de penalizare / rank constant. 
+`RRF` este o metoda standard de a combina mai multe ranking-uri fara a compara direct scorurile brute, ci pozițiile lor în ranking, ajustat cu o constantă de penalizare / rank constant. 
 
 ![Output_hybrid_search](images/RRFformula.png)
 
